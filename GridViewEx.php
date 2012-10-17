@@ -1,78 +1,94 @@
 <?php
 
 /**
- * 
- *  All rights reserved, Yuri 'Jureth' Minin, J.Jureth@gmail.com, 2010
+ *
+ *  All rights reserved, Yuri 'Jureth' Minin, J.Jureth@gmail.com, 2012
  */
 Yii::import('zii.widgets.grid.CGridView');
 
 /**
- * Расширение стандартного списка CGridView.
- * Добавлена кнопка {updateBtn}
- * Добавлен механизм выбора видимых столбцов и кнопка {columnsBtn}
+ * !!! Last changes wasn't tested yet.
+ *
+ * Extended CGridView.
+ * 1. Columns visibility added. Use {columnsBtn} to show management button
+ *
+ * @todo Replace russian (and english) hardcoded texts with i18n
  *
  * @package baseclass_extensions
  * @subpackage CGridView
  * @author Yuri 'Jureth' Minin, J.Jureth@gmail.com
- * @version v1.0,2010/11/13
+ * @version v1.0,11/13/2010
  */
 class GridViewEx extends CGridView {
 
     /**
-     * Все возможные столбцы
+     * All possible columns
      * @var array
      */
     private $dlgColumns;
+
     /**
-     * Флаг подключения диалога выбора столбцов
+     * Flag to use columns selection dialog.
+     * If it set to FALSE there will be common CGridView
      * @var boolean
      */
     private $useDialog;
+
     /**
-     * Перечень классов, которые никогда не должны иметь возможность настраиваться
+     * Column classes, which will never be shown in selection dialog.
      * @var array
      */
     private $excludedColumns = array(
-        'CButtonColumn'
+        'CButtonColumn' //we'll always skip columns like 'actions' by default
     );
-    private $columnNames = array(
-        'CCheckBoxColumn' => 'Выбор',
-    );
+
     /**
-     * Класс для хранения текущих состояний столбцов.
+     * Dialog column names
+     * @var array
+     */
+    private $columnNames = array(
+        'CCheckBoxColumn' => 'Select columns',
+    );
+
+    /**
+     * Object to store visible columns settings
      * @var IColumnsProvider
      */
     public $columnsProvider;
+
     /**
-     * Действие для записи списка столбцов
+     * URL associated with VisibleColumnsAction
+     * Will be called via AJAX with current columns list after
+     * closing the dialog
+     *
      * @var string
      */
     public $action = '/site/setVisibleColumns';
 
     /**
-     * Кнопка обновления
-     */
-    public function renderUpdateBtn(){
-        echo CHtml::link('Обновить', '', array( 'class' => 'button middle', 'onclick' => '$.fn.yiiGridView.update("' . $this->getId() . '")' ));
-    }
-
-    /**
      * Create column objects and initializes them.
      */
     protected function initColumns(){
-        if ( $this->columns === array( ) && $this->dataProvider instanceof CActiveDataProvider ) $this->columns = CActiveRecord::model($this->dataProvider->modelClass)->attributeNames();
+        if ( $this->columns === array( )
+            && $this->dataProvider instanceof CActiveDataProvider
+        ){
+            $this->columns = CActiveRecord::model($this->dataProvider->modelClass)->attributeNames();
+        }
 
         $visibleColumns = $this->getVisibilityData();
 
         $id = $this->getId();
         foreach( $this->columns as $i => $column ){
-            if ( is_string($column) ) $column = $this->createDataColumn($column);
-            else{
-                if ( !isset($column['class']) ) $column['class'] = 'CDataColumn';
+            if ( is_string($column) ){
+                $column = $this->createDataColumn($column);
+            }else{
+                if ( !isset($column['class']) ){
+                    $column['class'] = 'CDataColumn';
+                }
                 $column = Yii::createComponent($column, $this);
             }
 
-
+            //Generate own column id if it's needed
             if ( $column->id === null ){
                 if ( $column instanceof CDataColumn ){
                     $column->id = 'col_' . str_replace(array( '.', '=>' ), '_', $column->name);
@@ -98,7 +114,7 @@ class GridViewEx extends CGridView {
                 $this->dlgColumns[] = $listItem;
             }
 
-            //Видимость столбцов
+            //Set up visibility
             if ( !$column->visible || (isset($visibleColumns[$column->id]) && !$visibleColumns[$column->id]) ){
                 unset($this->columns[$i]);
                 continue;
@@ -107,9 +123,14 @@ class GridViewEx extends CGridView {
             $this->columns[$i] = $column;
         }
 
-        foreach( $this->columns as $column ) $column->init();
+        foreach( $this->columns as $column ){
+            $column->init();
+        }
     }
 
+    /**
+     * Get stored columns visibility information.
+     */
     protected function getVisibilityData(){
         if ( $this->columnsProvider instanceOf IColumnsProvider ){
             return $this->columnsProvider->getVisibleColumns($this->getId());
@@ -119,15 +140,22 @@ class GridViewEx extends CGridView {
     }
 
     /**
-     * Кнопка выбора столбцов
+     * Columns selection button
      */
     public function renderColumnsBtn(){
-        echo CHtml::link('Столбцы...', '', array( 'onclick' => '$("#show_columns_dlg").dialog("open")', 'class' => 'button middle' ));
+        echo CHtml::link(
+            'Columns...',
+            '',
+            array(
+                'onclick' => '$("#show_columns_dlg").dialog("open")',
+                'class' => 'button middle'
+            )
+        );
         $this->useDialog = true;
     }
 
     /**
-     * Вывод виджета
+     * Rendering
      */
     public function run(){
         parent::run();
@@ -137,15 +165,15 @@ class GridViewEx extends CGridView {
     }
 
     /**
-     * Диалог выбора столбцов
+     * Renders column selection dialog
      */
     private function renderSelectDialog(){
         $this->beginWidget('zii.widgets.jui.CJuiDialog', array(
             'id' => 'show_columns_dlg',
             'options' => array(
-                'title' => 'Выберите столбцы',
+                'title' => 'Select columns',
                 'buttons' => array(
-                    'Ок' => 'js:function(){
+                    'Ok' => 'js:function(){
 							var column_ids = new Array();
 							$("#show_columns_grid .items").find("input:checkbox").each(function(){
 								column_ids.push(new Array($(this).val(), $(this).attr("checked") ));
@@ -164,7 +192,7 @@ class GridViewEx extends CGridView {
                             );
 							$(this).dialog("close");
 						}',
-                    'Отмена' => 'js:function(){
+                    'Cancel' => 'js:function(){
 							$(this).dialog("close");
 						}',
                 ),
@@ -188,6 +216,8 @@ class GridViewEx extends CGridView {
             'selectableRows' => 2,
             'hideHeader' => true,
             'summaryText' => '',
+            //Todo Is that is internal ArrayDataProvider or my own?
+            //If it's my own, it'll be better to replace it by internal
             'dataProvider' => CustomArrayDataProvider::create()->setRawData($this->dlgColumns),
             'columns' => array(
                 array(
@@ -198,9 +228,7 @@ class GridViewEx extends CGridView {
                 'header',
             ),
         ));
-
         echo CHtml::closeTag('div');
         $this->endWidget();
     }
-
 }

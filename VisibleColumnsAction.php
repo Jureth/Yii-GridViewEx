@@ -1,7 +1,7 @@
 <?php
 
 /*
- *  All rights reserved, Yuri 'Jureth' Minin, J.Jureth@gmail.com, 2010
+ *  All rights reserved, Yuri 'Jureth' Minin, J.Jureth@gmail.com, 2012
  */
 
 /**
@@ -10,7 +10,7 @@
  * @package baseclass_extensions
  * @subpackage CGridView
  * @author Yuri 'Jureth' Minin, J.Jureth@gmail.com
- * @version v1.0,2010/11/13
+ * @version v1.0,11/13/2010
  */
 class VisibleColumnsAction extends CAction {
 
@@ -28,8 +28,8 @@ class VisibleColumnsAction extends CAction {
 
         $provider = $_POST['columnsProvider'];
         if ( $grid && $data ){
-            //Выяснение соответствия переданного класса интерфейсу и запуск его метода.
-            //Метода жуткая, может есть способы и проще.
+            //We can't call static method by class name ($class::model()),
+            //So we need to try something else
             $r = new ReflectionClass($provider);
             if ( $r->implementsInterface('IColumnsProvider') ){
                 /* @var $m ReflectionMethod */
@@ -37,9 +37,10 @@ class VisibleColumnsAction extends CAction {
                 $model = $m->invoke(null);
                 //$model = UserData::model();
                 $model->setVisibleColumns($grid, $data);
-                //todo remove this maybe?
+                //todo maybe it would be better remove this?
                 $model->save();
             }else{
+                //wrong class
                 throw new Exception('interface not implemented');
             }
         }
